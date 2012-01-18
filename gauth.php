@@ -1,18 +1,18 @@
 <?php
 session_start();
 
-//Get Account for each Applications
 //https://code.google.com/apis/console/
+//アプリケーションごとのクライアントIDとシークレットキー
 $clientId="142287768578.apps.googleusercontent.com";
 $clientSecret="Q4oCEMt0djuXtDYIXergztPo";
 
-//Google Document ID for AccessControl
+//アクセスコントロール用のGoogle Document ID
 $docId = '0Byvi4bob8F8dZjNlZmI4YjUtMWU4Ny00YjY4LWJhYWMtMmEzZDcyYmY2MjBh';
 
-//URL to this file
+//コールバックに指定したURL
 $callback = "http://localhost/~daichang/oauth/gauth.php";
 
-//location after auth succeed
+//認証完了後のURL
 $onSucceed = 'http://localhost/~daichang/oauth/index.php';
 
 if(isset($_GET['login'])){
@@ -55,8 +55,11 @@ if(!empty($_GET['code'])){
 
 	//ACL check
 	$uri = 'https://docs.google.com/feeds/default/private/full/'.$docId.'';
-	$cmd = 'curl -H "Authorization: Bearer '.$access_token.'" -H "GData-Version: 3.0" '.$uri;
-	$doc = `$cmd`;
+	$head = array(
+	'Authorization' => 'Bearer '.$access_token,
+	'GData-Version' => '3.0',
+	);
+	$doc = get($uri, array(), $head);
 	if(empty($doc)){
 		die('doc access failed');
 	}
@@ -66,8 +69,12 @@ if(!empty($_GET['code'])){
 	}
 
 	//get Email
-	$cmd = 'curl -H "Authorization: Bearer '.$access_token.'" https://www.googleapis.com/oauth2/v1/userinfo';
-	$dat = json_decode(`$cmd`, true);
+	$uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
+	$head = array(
+	'Authorization' => 'Bearer '.$access_token,
+	);
+	$doc = get($uri, array(), $head);
+	$dat = json_decode($doc, true);
 	$email = $dat['email'];
 
 	$_SESSION['GAUTH_EMAIL'] = $email;
@@ -82,19 +89,49 @@ function post($url, $data=array()){
 	curl_setopt ($ch,CURLOPT_URL, $url);
 	curl_setopt ($ch,CURLOPT_POST,1);
 	
-
 	$post = http_build_query($data);
 	
 	curl_setopt ($ch,CURLOPT_POSTFIELDS,$post);
 	curl_setopt ($ch,CURLOPT_SSL_VERIFYPEER,FALSE);
 	curl_setopt ($ch,CURLOPT_RETURNTRANSFER, 1);
 
+	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
+
 	$res = curl_exec($ch);
 	curl_close($ch);
 	
-	return $res;
+	if($status===200){	
+		return $res;
+	}else{
+		return false;
+	}
 }
 
+function get($url, $data, $headers=array()){
+	$data = http_build_query($data);
+
+	$ch=curl_init();
+	curl_setopt ($ch,CURLOPT_URL, $url . '?' . $data);
+
+	$head = array();	
+	foreach($headers as $key=>$val){
+		$head[] = $key . ':' . $val;
+	}
+	curl_setopt ($ch,CURLOPT_HTTPHEADER, $head);
+	
+	curl_setopt ($ch,CURLOPT_SSL_VERIFYPEER,FALSE);
+	curl_setopt ($ch,CURLOPT_RETURNTRANSFER, 1);
+
+	$res = curl_exec($ch);
+
+	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
+	
+	if($status===200){	
+		return $res;
+	}else{
+		return false;
+	}
+}
 
 
 
