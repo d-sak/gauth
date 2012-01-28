@@ -95,10 +95,8 @@ function post($url, $data=array()){
 	curl_setopt ($ch,CURLOPT_SSL_VERIFYPEER,FALSE);
 	curl_setopt ($ch,CURLOPT_RETURNTRANSFER, 1);
 
-	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
-
 	$res = curl_exec($ch);
-	curl_close($ch);
+	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
 	
 	if($status===200){	
 		return $res;
