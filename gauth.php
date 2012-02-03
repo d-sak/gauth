@@ -39,7 +39,7 @@ class gauth
     private static function getAccessToken(array $options) 
     {
         $uri = 'https://accounts.google.com/o/oauth2/token';
-        $var = post($uri, $options);
+        $var = self::post($uri, $options);
         if (empty($var)) {
             throw new RuntimeException('token api failed');
         }
@@ -59,7 +59,7 @@ class gauth
             'Authorization' => 'Bearer '.$access_token,
             'GData-Version' => '3.0',
         );
-        $doc = get($uri, array(), $head);
+        $doc = self::get($uri, array(), $head);
         if (empty($doc)) {
             exit('doc access failed');
         }
@@ -76,9 +76,44 @@ class gauth
         $head = array(
             'Authorization' => 'Bearer '.$access_token,
         );
-        $doc = get($uri, array(), $head);
+        $doc = self::get($uri, array(), $head);
         $dat = json_decode($doc, true);
         return $dat['email'];
+    }
+
+    private static function post($url, $post_data = array())
+    {
+        $data = http_build_query($post_data);
+
+        $header = array(
+            "Content-Type: application/x-www-form-urlencoded",
+            "Content-Length: ".strlen($data)
+        );
+
+        $context = array(
+            "http" => array(
+                "method"  => "POST",
+                "header"  => implode("\r\n", $header),
+                "content" => $data
+            )
+        );
+
+        return file_get_contents($url, false, stream_context_create($context));
+    }
+
+    private static function get($url, $data, $headers=array()){
+        $data = http_build_query($data);
+        $head = array();
+        foreach($headers as $key=>$val){
+            $head[] = $key . ': ' . $val;
+        }
+        $context = array(
+            "http" => array(
+                "method"  => "GET",
+                "header"  => implode("\r\n", $head),
+            )
+        );
+        return file_get_contents($url . '?' . $data, false, stream_context_create($context));
     }
 }
 
@@ -90,42 +125,5 @@ if (isset($_GET['login'])) {
 if (!empty($_GET['code'])) {
     $code = $_GET['code'];
     gauth::auth($code, $options); 
-
-}
-
-function post($url, $post_data = array())
-{
-    $data = http_build_query($post_data);
-
-    //header
-    $header = array(
-        "Content-Type: application/x-www-form-urlencoded",
-        "Content-Length: ".strlen($data)
-    );
-
-    $context = array(
-        "http" => array(
-            "method"  => "POST",
-            "header"  => implode("\r\n", $header),
-            "content" => $data
-        )
-    );
-
-    return file_get_contents($url, false, stream_context_create($context));
-}
-
-function get($url, $data, $headers=array()){
-    $data = http_build_query($data);
-    $head = array();
-    foreach($headers as $key=>$val){
-        $head[] = $key . ': ' . $val;
-    }
-    $context = array(
-        "http" => array(
-            "method"  => "GET",
-            "header"  => implode("\r\n", $head),
-        )
-    );
-    return file_get_contents($url . '?' . $data, false, stream_context_create($context));
 }
 
