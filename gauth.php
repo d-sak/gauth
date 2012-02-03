@@ -1,6 +1,16 @@
 <?php
 //https://code.google.com/apis/console/
 
+/*
+$options = array(
+    'client_id' => '',
+    'client_secret' => '',
+    'doc_id' => '',
+    'redirect_uri' => "",
+    'onSucceed' => '',
+); 
+ */
+
 require_once 'config.php';
 
 class gauth
