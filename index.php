@@ -1,21 +1,12 @@
 <?php
 session_start();
-
 ?>
 <html>
 <body>
-
-<?if($_SESSION['GAUTH_TOKEN']):?>
-	hello, <?=$_SESSION['GAUTH_EMAIL']?>
-	
-	
-	
-<?else:?>
-	<a href="./gauthcallback.php?login">Login</a>
-<?endif;?>
-
-
+<?php if ($_SESSION['GAUTH_TOKEN']): ?>
+    hello, <?php echo $_SESSION['GAUTH_EMAIL'] ?>
+<?php else: ?>
+    <a href="./gauthcallback.php?login">Login</a>
+<?php endif ?>
 </body>
-
 </html>
-
