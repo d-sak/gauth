@@ -4,13 +4,13 @@
 require_once 'config.php';
 
 session_start();
-if(isset($_GET['login'])){
+if (isset($_GET['login'])) {
     $scope = array(
         "https://docs.google.com/feeds/default/private/full/".$docId,
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
     );
-    $scope = join(' ', $scope);
+    $scope = implode(' ', $scope);
 
     $url = 'https://accounts.google.com/o/oauth2/auth?client_id='.urlencode($clientId).
         '&redirect_uri='.urlencode($callback).'&scope='.urlencode($scope).'&response_type=code';
