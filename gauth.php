@@ -3,75 +3,94 @@
 
 require_once 'config.php';
 
-session_start();
-if (isset($_GET['login'])) {
-    $scope = array(
-        "https://docs.google.com/feeds/default/private/full/".$docId,
-        "https://www.googleapis.com/auth/userinfo.profile",
-        "https://www.googleapis.com/auth/userinfo.email",
-    );
-    $scope = implode(' ', $scope);
+class gauth
+{
+    public static function login(array $options) 
+    {
+        $scope = array(
+            "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}",
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/userinfo.email",
+        );
+        $scope = implode(' ', $scope);
 
-    $url = 'https://accounts.google.com/o/oauth2/auth?client_id='.urlencode($clientId).
-        '&redirect_uri='.urlencode($callback).'&scope='.urlencode($scope).'&response_type=code';
+        $url = 'https://accounts.google.com/o/oauth2/auth?client_id='.urlencode($options['client_id']).
+            '&redirect_uri='.urlencode($options['redirect_uri']).'&scope='.urlencode($scope).'&response_type=code';
 
-    header('Location: '.$url);
-    exit;
-}
-
-if(!empty($_GET['code'])){
-
-    $code = $_GET['code'];
-
-    $data = array(
-        'client_id' => $clientId,
-        'client_secret' => $clientSecret,
-        'redirect_uri' => $callback,
-        'grant_type' => 'authorization_code',
-        'code' => $code,
-    );	
-    $uri = 'https://accounts.google.com/o/oauth2/token';
-    $var = post($uri, $data);
-
-    if(empty($var)){
-        throw new RuntimeException('token api failed');
+        header('Location: '.$url);
+        exit;
     }
-    $var = json_decode($var, true);
-    if(empty($var['access_token'])){
-        die('parse token failed');
-    }
-    $access_token = $var['access_token'];
 
-    //ACL check
-    $uri = 'https://docs.google.com/feeds/default/private/full/'.$docId.'';
-    $head = array(
-        'Authorization' => 'Bearer '.$access_token,
-        'GData-Version' => '3.0',
-    );
-    $doc = get($uri, array(), $head);
-    if(empty($doc)){
-        var_dump($doc);
-        exit('doc access failed');
+    public static function auth($code, array $options) 
+    {
+        $options['grant_type'] = 'authorization_code';
+        $options['code'] = $code;
+
+        $access_token = self::getAccessToken($options); 
+        self::checkACL($access_token, $options); 
+
+        $_SESSION['GAUTH_EMAIL'] = self::getEmail($access_token); 
+        $_SESSION['GAUTH_TOKEN'] = $access_token;
+
+        header('Location: '.$options['onSucceed']);
+        exit;
     }
-    $doc = simplexml_load_string($doc);
-    if(empty($doc->title)){
-        die('parse doc failed');
+
+    private static function getAccessToken(array $options) 
+    {
+        $uri = 'https://accounts.google.com/o/oauth2/token';
+        $var = post($uri, $options);
+        if (empty($var)) {
+            throw new RuntimeException('token api failed');
+        }
+        $var = json_decode($var, true);
+        if(empty($var['access_token'])){
+            die('parse token failed');
+        }
+
+        return $var['access_token'];
+    }
+
+    private static function checkACL($access_token, array $options) 
+    {
+        //ACL check
+        $uri = "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}";
+        $head = array(
+            'Authorization' => 'Bearer '.$access_token,
+            'GData-Version' => '3.0',
+        );
+        $doc = get($uri, array(), $head);
+        if (empty($doc)) {
+            exit('doc access failed');
+        }
+        $doc = simplexml_load_string($doc);
+        if(empty($doc->title)){
+            die('parse doc failed');
+        }
     }
 
     //get Email
-    $uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
-    $head = array(
-        'Authorization' => 'Bearer '.$access_token,
-    );
-    $doc = get($uri, array(), $head);
-    $dat = json_decode($doc, true);
-    $email = $dat['email'];
+    private static function getEmail($access_token) 
+    {
+        $uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
+        $head = array(
+            'Authorization' => 'Bearer '.$access_token,
+        );
+        $doc = get($uri, array(), $head);
+        $dat = json_decode($doc, true);
+        return $dat['email'];
+    }
+}
 
-    $_SESSION['GAUTH_EMAIL'] = $email;
-    $_SESSION['GAUTH_TOKEN'] = $access_token;
+session_start();
+if (isset($_GET['login'])) {
+    gauth::login($options); 
+}
 
-    header('Location: '.$onSucceed);
-    exit;
+if (!empty($_GET['code'])) {
+    $code = $_GET['code'];
+    gauth::auth($code, $options); 
+
 }
 
 function post($url, $post_data = array())
