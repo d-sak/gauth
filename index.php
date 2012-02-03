@@ -11,7 +11,7 @@ session_start();
 	
 	
 <?else:?>
-	<a href="./gauth.php?login">Login</a>
+	<a href="./gauthcallback.php?login">Login</a>
 <?endif;?>
 
 
