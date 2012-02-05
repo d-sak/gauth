@@ -19,3 +19,8 @@ client_id,client_secretを取得する。
 ## 解決した
 + classにする(staticにして利便性を損なわないように)
 + curl使わない
+
+## 関連URL
++ http://project-p.jp/halt/?p=1715
++ http://d.hatena.ne.jp/d_sak/20120202/1328147432
++ http://www.slideshare.net/dai861/gauth
