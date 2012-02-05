@@ -11,8 +11,6 @@ $options = array(
 ); 
  */
 
-require_once 'config.php';
-
 class gauth
 {
     public static function login(array $options) 
@@ -125,11 +123,5 @@ class gauth
         );
         return file_get_contents($url . '?' . $data, false, stream_context_create($context));
     }
-}
-
-session_start();
-if (!empty($_GET['code'])) {
-    $code = $_GET['code'];
-    gauth::auth($code, $options); 
 }
 
