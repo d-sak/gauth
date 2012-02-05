@@ -128,10 +128,6 @@ class gauth
 }
 
 session_start();
-if (isset($_GET['login'])) {
-    gauth::login($options); 
-}
-
 if (!empty($_GET['code'])) {
     $code = $_GET['code'];
     gauth::auth($code, $options); 
