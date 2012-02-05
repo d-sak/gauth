@@ -20,7 +20,7 @@ if (isset($_GET['logout'])) {
 ?>
 <html>
 <body>
-<?php if ($_SESSION['GAUTH_TOKEN']): ?>
+<?php if (isset($_SESSION['GAUTH_TOKEN'])): ?>
     hello, <?php echo $_SESSION['GAUTH_EMAIL'] ?>
     <p><a href="?logout">Logout</a></p>
 <?php else: ?>
