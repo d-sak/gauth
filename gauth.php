@@ -53,7 +53,7 @@ class gauth
         }
         $var = json_decode($var, true);
         if (empty($var['access_token'])) {
-            exit('parse token failed');
+            throw new RuntimeException('parse token failed');
         }
 
         return $var['access_token'];
@@ -69,11 +69,11 @@ class gauth
         );
         $doc = self::get($uri, array(), $head);
         if (empty($doc)) {
-            exit('doc access failed');
+            throw new RuntimeException('doc access failed');
         }
         $doc = simplexml_load_string($doc);
         if(empty($doc->title)){
-            die('parse doc failed');
+            throw new RuntimeException('parse doc failed');
         }
     }
 
