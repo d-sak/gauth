@@ -31,7 +31,7 @@ if (isset($_GET['logout'])) {
 <html>
 <body>
 <?php if (isset($_SESSION['GAUTH_TOKEN'])): ?>
-    hello, <?php echo $_SESSION['GAUTH_EMAIL'] ?>
+    hello, <?php echo $_SESSION['GAUTH_USERINFO']['name'] ?>
     <p><a href="?logout">Logout</a></p>
 <?php else: ?>
     <p><a href="?login">Login</a></p>

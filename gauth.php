@@ -8,12 +8,12 @@ $options = array(
     'doc_id' => '',
     'redirect_uri' => "",
     'onSucceed' => '',
-); 
+);
  */
 
 class gauth
 {
-    public static function login(array $options) 
+    public static function login(array $options)
     {
         $scope = array(
             "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}",
@@ -29,22 +29,22 @@ class gauth
         exit;
     }
 
-    public static function auth($code, array $options) 
+    public static function auth($code, array $options)
     {
         $options['grant_type'] = 'authorization_code';
         $options['code'] = $code;
 
-        $access_token = self::getAccessToken($options); 
-        self::checkACL($access_token, $options); 
+        $access_token = self::getAccessToken($options);
+        self::checkACL($access_token, $options);
 
-        $_SESSION['GAUTH_EMAIL'] = self::getEmail($access_token); 
+        $_SESSION['GAUTH_USERINFO'] = self::getUserInfo($access_token);
         $_SESSION['GAUTH_TOKEN'] = $access_token;
 
         header('Location: '.$options['onSucceed']);
         exit;
     }
 
-    private static function getAccessToken(array $options) 
+    private static function getAccessToken(array $options)
     {
         $uri = 'https://accounts.google.com/o/oauth2/token';
         $var = self::post($uri, $options);
@@ -52,14 +52,14 @@ class gauth
             throw new RuntimeException('token api failed');
         }
         $var = json_decode($var, true);
-        if(empty($var['access_token'])){
-            die('parse token failed');
+        if (empty($var['access_token'])) {
+            exit('parse token failed');
         }
 
         return $var['access_token'];
     }
 
-    private static function checkACL($access_token, array $options) 
+    private static function checkACL($access_token, array $options)
     {
         //ACL check
         $uri = "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}";
@@ -77,16 +77,14 @@ class gauth
         }
     }
 
-    //get Email
-    private static function getEmail($access_token) 
+    private static function getUserInfo($access_token)
     {
         $uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
-        $head = array(
+        $header = array(
             'Authorization' => 'Bearer '.$access_token,
         );
-        $doc = self::get($uri, array(), $head);
-        $dat = json_decode($doc, true);
-        return $dat['email'];
+        $result = self::get($uri, array(), $header);
+        return json_decode($result, true);
     }
 
     private static function post($url, $post_data = array())
