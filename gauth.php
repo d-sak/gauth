@@ -1,135 +1,125 @@
 <?php
-session_start();
-
 //https://code.google.com/apis/console/
-//アプリケーションごとのクライアントIDとシークレットキー
-$clientId="142287768578.apps.googleusercontent.com";
-$clientSecret="Q4oCEMt0djuXtDYIXergztPo";
 
-//アクセスコントロール用のGoogle Document ID
-$docId = '0Byvi4bob8F8dZjNlZmI4YjUtMWU4Ny00YjY4LWJhYWMtMmEzZDcyYmY2MjBh';
+/*
+$options = array(
+    'client_id' => '',
+    'client_secret' => '',
+    'doc_id' => '',
+    'redirect_uri' => "",
+    'onSucceed' => '',
+);
+ */
 
-//コールバックに指定したURL
-$callback = "http://localhost/~daichang/oauth/gauth.php";
+class gauth
+{
+    public static function login(array $options)
+    {
+        $scope = array(
+            "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}",
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/userinfo.email",
+        );
+        $scope = implode(' ', $scope);
 
-//認証完了後のURL
-$onSucceed = 'http://localhost/~daichang/oauth/index.php';
+        $url = 'https://accounts.google.com/o/oauth2/auth?client_id='.urlencode($options['client_id']).
+            '&redirect_uri='.urlencode($options['redirect_uri']).'&scope='.urlencode($scope).'&response_type=code';
 
-if(isset($_GET['login'])){
-	$scope = array(
-	"https://docs.google.com/feeds/default/private/full/".$docId,
-	"https://www.googleapis.com/auth/userinfo.profile",
-	"https://www.googleapis.com/auth/userinfo.email",
-	);
-	$scope = join(' ', $scope);
-	
-	$url = 'https://accounts.google.com/o/oauth2/auth?client_id='.urlencode($clientId).
-				'&redirect_uri='.urlencode($callback).'&scope='.urlencode($scope).'&response_type=code';
+        header('Location: '.$url);
+        exit;
+    }
 
-	header('Location: '.$url);
-	exit;
+    public static function auth($code, array $options)
+    {
+        $options['grant_type'] = 'authorization_code';
+        $options['code'] = $code;
+
+        $access_token = self::getAccessToken($options);
+        self::checkACL($access_token, $options);
+
+        $_SESSION['GAUTH_USERINFO'] = self::getUserInfo($access_token);
+        $_SESSION['GAUTH_TOKEN'] = $access_token;
+
+        header('Location: '.$options['onSucceed']);
+        exit;
+    }
+
+    private static function getAccessToken(array $options)
+    {
+        $uri = 'https://accounts.google.com/o/oauth2/token';
+        $var = self::post($uri, $options);
+        if (empty($var)) {
+            throw new RuntimeException('token api failed');
+        }
+        $var = json_decode($var, true);
+        if (empty($var['access_token'])) {
+            throw new RuntimeException('parse token failed');
+        }
+
+        return $var['access_token'];
+    }
+
+    private static function checkACL($access_token, array $options)
+    {
+        //ACL check
+        $uri = "https://docs.google.com/feeds/default/private/full/{$options['doc_id']}";
+        $head = array(
+            'Authorization' => 'Bearer '.$access_token,
+            'GData-Version' => '3.0',
+        );
+        $doc = self::get($uri, array(), $head);
+        if (empty($doc)) {
+            throw new RuntimeException('doc access failed');
+        }
+        $doc = simplexml_load_string($doc);
+        if(empty($doc->title)){
+            throw new RuntimeException('parse doc failed');
+        }
+    }
+
+    private static function getUserInfo($access_token)
+    {
+        $uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
+        $header = array(
+            'Authorization' => 'Bearer '.$access_token,
+        );
+        $result = self::get($uri, array(), $header);
+        return json_decode($result, true);
+    }
+
+    private static function post($url, $post_data = array())
+    {
+        $data = http_build_query($post_data);
+
+        $header = array(
+            "Content-Type: application/x-www-form-urlencoded",
+            "Content-Length: ".strlen($data)
+        );
+
+        $context = array(
+            "http" => array(
+                "method"  => "POST",
+                "header"  => implode("\r\n", $header),
+                "content" => $data
+            )
+        );
+
+        return file_get_contents($url, false, stream_context_create($context));
+    }
+
+    private static function get($url, $data, $headers=array()){
+        $data = http_build_query($data);
+        $head = array();
+        foreach($headers as $key=>$val){
+            $head[] = $key . ': ' . $val;
+        }
+        $context = array(
+            "http" => array(
+                "method"  => "GET",
+                "header"  => implode("\r\n", $head),
+            )
+        );
+        return file_get_contents($url . '?' . $data, false, stream_context_create($context));
+    }
 }
-
-if(!empty($_GET['code'])){
-
-	$code = $_GET['code'];
-
-	$data = array(
-		'client_id' => $clientId,
-		'client_secret' => $clientSecret,
-		'redirect_uri' => $callback,
-		'grant_type' => 'authorization_code',
-		'code' => $code,
-	);	
-	$uri = 'https://accounts.google.com/o/oauth2/token';
-	$var = post($uri, $data);
-	
-	if(empty($var)){
-		die('token api failed');
-	}
-	$var = json_decode($var, true);
-	if(empty($var['access_token'])){
-		die('parse token failed');
-	}
-	$access_token = $var['access_token'];
-
-	//ACL check
-	$uri = 'https://docs.google.com/feeds/default/private/full/'.$docId.'';
-	$head = array(
-	'Authorization' => 'Bearer '.$access_token,
-	'GData-Version' => '3.0',
-	);
-	$doc = get($uri, array(), $head);
-	if(empty($doc)){
-		die('doc access failed');
-	}
-	$doc = simplexml_load_string($doc);
-	if(empty($doc->title)){
-		die('parse doc failed');
-	}
-
-	//get Email
-	$uri = 'https://www.googleapis.com/oauth2/v1/userinfo';
-	$head = array(
-	'Authorization' => 'Bearer '.$access_token,
-	);
-	$doc = get($uri, array(), $head);
-	$dat = json_decode($doc, true);
-	$email = $dat['email'];
-
-	$_SESSION['GAUTH_EMAIL'] = $email;
-	$_SESSION['GAUTH_TOKEN'] = $access_token;
-	
-	header('Location: '.$onSucceed);
-	exit;
-}
-
-function post($url, $data=array()){
-	$ch=curl_init();
-	curl_setopt ($ch,CURLOPT_URL, $url);
-	curl_setopt ($ch,CURLOPT_POST,1);
-	
-	$post = http_build_query($data);
-	
-	curl_setopt ($ch,CURLOPT_POSTFIELDS,$post);
-	curl_setopt ($ch,CURLOPT_SSL_VERIFYPEER,FALSE);
-	curl_setopt ($ch,CURLOPT_RETURNTRANSFER, 1);
-
-	$res = curl_exec($ch);
-	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
-	
-	if($status===200){	
-		return $res;
-	}else{
-		return false;
-	}
-}
-
-function get($url, $data, $headers=array()){
-	$data = http_build_query($data);
-
-	$ch=curl_init();
-	curl_setopt ($ch,CURLOPT_URL, $url . '?' . $data);
-
-	$head = array();	
-	foreach($headers as $key=>$val){
-		$head[] = $key . ':' . $val;
-	}
-	curl_setopt ($ch,CURLOPT_HTTPHEADER, $head);
-	
-	curl_setopt ($ch,CURLOPT_SSL_VERIFYPEER,FALSE);
-	curl_setopt ($ch,CURLOPT_RETURNTRANSFER, 1);
-
-	$res = curl_exec($ch);
-
-	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);	
-	
-	if($status===200){	
-		return $res;
-	}else{
-		return false;
-	}
-}
-
-
 
